@@ -1,16 +1,3 @@
-"""
-main.py – Streamlit application for Assignment 3
-
-Tasks
-─────
-  1. Harris Corner Detection  (Harris + λ₋, with timing)
-  2. SIFT Feature Descriptors (from Harris keypoints, with timing)
-  3. Feature Matching         (SSD + NCC, with timing)
-
-Run with:
-    streamlit run main.py
-"""
-
 import time
 import warnings
 warnings.filterwarnings("ignore")
@@ -29,12 +16,9 @@ from src.utils   import (
     fig_descriptor_heatmaps, create_sample_images,
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
 #  PAGE CONFIG
-# ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="CV Feature Lab – Assignment 3",
-    page_icon="🔬",
+    page_title="CV Feature Lab ",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -56,9 +40,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
 #  SIDEBAR – navigation & parameters
-# ─────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## 🔬 CV Feature Lab")
     st.caption("Assignment 3 – Feature Detection & Matching")
@@ -67,18 +49,18 @@ with st.sidebar:
     task = st.radio(
         "**Task**",
         [
-            "🏁  Harris Corner Detection",
-            "📐  SIFT Feature Descriptors",
-            "🔗  Feature Matching (SSD & NCC)",
+            "Harris Corner Detection",
+            "SIFT Feature Descriptors",
+            "Feature Matching (SSD & NCC)",
         ],
         label_visibility="collapsed",
     )
 
-    needs_two_images = task.startswith("🔗")
+    needs_two_images = task.startswith("Feature Matching")
 
-    # ── Harris parameters ────────────────────────────────────
+    # Harris parameters 
     st.markdown("---")
-    with st.expander("⚙️ Harris Parameters", expanded=True):
+    with st.expander("Harris Parameters", expanded=True):
         harris_k       = st.slider("k constant",        0.01, 0.10, 0.04, 0.005,
                                    help="Harris sensitivity constant (k=0.04 typical).")
         harris_sigma   = st.slider("σ – Gaussian",      0.5,  3.0,  1.0,  0.1,
@@ -89,17 +71,17 @@ with st.sidebar:
         harris_nms     = st.slider("NMS window",        3,    15,   7,    2,
                                    help="Side length of non-max suppression window.")
 
-    # ── SIFT parameters ──────────────────────────────────────
-    if not task.startswith("🏁"):
-        with st.expander("⚙️ SIFT Parameters", expanded=False):
+    #   SIFT parameters 
+    if not task.startswith("Harris"):
+        with st.expander("SIFT Parameters", expanded=False):
             max_kp = st.slider("Max keypoints", 50, 500, 200, 50,
                                help="Maximum number of keypoints to describe.")
     else:
         max_kp = 200
 
-    # ── Matching parameters ──────────────────────────────────
+    #  Matching parameters 
     if needs_two_images:
-        with st.expander("⚙️ Matching Parameters", expanded=False):
+        with st.expander("Matching Parameters", expanded=False):
             ssd_ratio   = st.slider("SSD Lowe ratio",   0.50, 0.95, 0.75, 0.05,
                                     help="Ratio test threshold. Lower = stricter.")
             ncc_thresh  = st.slider("NCC threshold",    0.50, 0.99, 0.70, 0.05,
@@ -109,7 +91,7 @@ with st.sidebar:
     else:
         ssd_ratio, ncc_thresh, max_matches = 0.75, 0.70, 30
 
-    # ── Image input ───────────────────────────────────────────
+    #  Image input 
     st.markdown("---")
     st.markdown("### 📷 Image Input")
 
@@ -122,11 +104,11 @@ def _image_widget(label: str, key: str) -> np.ndarray | None:
     """Render upload + preset controls in the sidebar; return RGB uint8 array."""
     src = st.sidebar.radio(
         f"{label} source",
-        ["🗂 Preset", "⬆️ Upload"],
+        ["Preset", "Upload"],
         key=f"src_{key}",
         horizontal=True,
     )
-    if src == "⬆️ Upload":
+    if src == "Upload":
         f = st.sidebar.file_uploader(
             f"Upload {label}", type=["png", "jpg", "jpeg", "bmp"],
             key=f"up_{key}",
@@ -148,25 +130,22 @@ else:
     img1 = _image_widget("Image", "1")
     img2 = None
 
-# ─────────────────────────────────────────────────────────────────────────────
 #  GUARD: require image(s) before proceeding
-# ─────────────────────────────────────────────────────────────────────────────
+
 if img1 is None or (needs_two_images and img2 is None):
-    st.info("👈  Please select or upload the required image(s) in the sidebar.")
+    st.info("Please select or upload the required image(s) in the sidebar.")
     st.stop()
 
 
-# ═════════════════════════════════════════════════════════════════════════════
 #  TASK 1 – HARRIS CORNER DETECTION
-# ═════════════════════════════════════════════════════════════════════════════
-if task.startswith("🏁"):
-    st.title("🏁 Harris Corner Detection")
+if task.startswith("Harris"):
+    st.title("Harris Corner Detection")
     st.markdown(
         "Detecting corners using **Harris** (R = det − k·tr²) "
         "and **λ₋** (minimum eigenvalue / Shi-Tomasi) — both from scratch."
     )
 
-    # ── Build detectors ───────────────────────────────────────
+    #  Build detectors 
     det_h = HarrisDetector(
         method="harris",
         k=harris_k, sigma=harris_sigma,
@@ -178,12 +157,12 @@ if task.startswith("🏁"):
         window_size=5, threshold_ratio=harris_thresh, nms_window=harris_nms,
     )
 
-    # ── Run detection ─────────────────────────────────────────
+    #  Run detection 
     with st.spinner("Running Harris and λ₋ detectors…"):
         t0 = time.perf_counter(); kp_h,  R_h  = det_h.detect(img1);  t_h  = time.perf_counter() - t0
         t0 = time.perf_counter(); kp_lm, R_lm = det_lm.detect(img1); t_lm = time.perf_counter() - t0
 
-    # ── Metrics row ───────────────────────────────────────────
+    #  Metrics row 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Harris – corners found", f"{len(kp_h):,}")
     m2.metric("Harris – time",          f"{t_h  * 1000:.1f} ms")
@@ -192,7 +171,7 @@ if task.startswith("🏁"):
 
     st.markdown("---")
 
-    # ── Response maps ─────────────────────────────────────────
+    #  Response maps 
     st.subheader("Corner Response Maps")
     c1, c2 = st.columns(2)
     with c1:
@@ -206,7 +185,7 @@ if task.startswith("🏁"):
 
     st.markdown("---")
 
-    # ── Detected corners overlay ──────────────────────────────
+    #  Detected corners overlay 
     st.subheader("Detected Corners Overlaid on Image")
     c1, c2 = st.columns(2)
     with c1:
@@ -220,7 +199,7 @@ if task.startswith("🏁"):
 
     st.markdown("---")
 
-    # ── Side-by-side comparison at same threshold ─────────────
+    #  Side-by-side comparison at same threshold 
     st.subheader("Original Image")
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.imshow(img1)
@@ -230,8 +209,8 @@ if task.startswith("🏁"):
 
     st.markdown("---")
 
-    # ── Timing table ──────────────────────────────────────────
-    st.subheader("📊 Computation Time Report")
+    #  Timing table 
+    st.subheader("Computation Time Report")
     st.table({
         "Method":          ["Harris  (R = det − k·tr²)", "λ₋  (min eigenvalue)"],
         "Corners found":   [len(kp_h),                  len(kp_lm)],
@@ -240,17 +219,15 @@ if task.startswith("🏁"):
     })
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-#  TASK 2 – SIFT FEATURE DESCRIPTORS
-# ═════════════════════════════════════════════════════════════════════════════
-elif task.startswith("📐"):
-    st.title("📐 SIFT Feature Descriptors")
+# SIFT FEATURE DESCRIPTORS
+elif task.startswith("SIFT"):
+    st.title("SIFT Feature Descriptors")
     st.markdown(
         "Harris keypoints are detected first; then a **128-dim SIFT descriptor** "
         "is computed for each one — entirely from scratch (pure NumPy)."
     )
 
-    # ── Run pipeline ─────────────────────────────────────────
+    #  Run pipeline 
     detector   = HarrisDetector(
         method="harris", k=harris_k, sigma=harris_sigma,
         window_size=5, threshold_ratio=harris_thresh, nms_window=harris_nms,
@@ -266,7 +243,7 @@ elif task.startswith("📐"):
         valid_kps, descs = descriptor.describe(img1, kps)
         t_describe = time.perf_counter() - t0
 
-    # ── Metrics ───────────────────────────────────────────────
+    #  Metrics 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Keypoints detected",    f"{len(kps):,}")
     m2.metric("Detection time",        f"{t_detect  * 1000:.1f} ms")
@@ -275,7 +252,7 @@ elif task.startswith("📐"):
 
     st.markdown("---")
 
-    # ── Keypoints visualisation ───────────────────────────────
+    #  Keypoints visualisation 
     st.subheader("Detected Keypoints (Harris → SIFT input)")
     fig = fig_keypoints(img1, valid_kps,
                         title="SIFT Keypoints (Harris)", color="yellow",
@@ -284,14 +261,14 @@ elif task.startswith("📐"):
 
     st.markdown("---")
 
-    # ── Harris response map ───────────────────────────────────
+    #  Harris response map 
     st.subheader("Harris Response Map (input to keypoint selection)")
     fig = fig_response_map(R, title="Harris R", cmap="hot")
     st.pyplot(fig, use_container_width=True); plt.close(fig)
 
     st.markdown("---")
 
-    # ── Descriptor heatmaps ───────────────────────────────────
+    #  Descriptor heatmaps 
     st.subheader("Sample SIFT Descriptor Heatmaps")
     st.caption(
         "Each descriptor is 128-dim, visualised as a 16×8 grid: "
@@ -308,7 +285,7 @@ elif task.startswith("📐"):
 
     st.markdown("---")
 
-    # ── Descriptor statistics ─────────────────────────────────
+    #  Descriptor statistics 
     if len(descs) > 0:
         st.subheader("Descriptor Statistics")
         c1, c2, c3 = st.columns(3)
@@ -319,8 +296,8 @@ elif task.startswith("📐"):
 
     st.markdown("---")
 
-    # ── Timing table ──────────────────────────────────────────
-    st.subheader("📊 Computation Time Report")
+    #  Timing table 
+    st.subheader("Computation Time Report")
     st.table({
         "Step":       ["Harris Detection", "SIFT Description", "Total"],
         "Count":      [f"{len(kps):,} keypoints",
@@ -332,17 +309,15 @@ elif task.startswith("📐"):
     })
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-#  TASK 3 – FEATURE MATCHING  (SSD & NCC)
-# ═════════════════════════════════════════════════════════════════════════════
-elif task.startswith("🔗"):
-    st.title("🔗 Feature Matching — SSD & NCC")
+#  FEATURE MATCHING  (SSD & NCC)
+elif task.startswith("Feature Matching"):
+    st.title("Feature Matching — SSD & NCC")
     st.markdown(
         "Features are extracted from both images using Harris + SIFT, "
         "then matched with **SSD** (Lowe ratio test) and **NCC** — all from scratch."
     )
 
-    # ── Build objects ─────────────────────────────────────────
+    #  Build objects 
     detector    = HarrisDetector(
         method="harris", k=harris_k, sigma=harris_sigma,
         window_size=5, threshold_ratio=harris_thresh, nms_window=harris_nms,
@@ -351,7 +326,7 @@ elif task.startswith("🔗"):
     ssd_matcher = SSDMatcher(ratio_threshold=ssd_ratio)
     ncc_matcher = NCCMatcher(threshold=ncc_thresh)
 
-    # ── Run pipeline ─────────────────────────────────────────
+    #  Run pipeline 
     with st.spinner("Extracting features and matching…"):
         # Image 1
         t0 = time.perf_counter()
@@ -375,7 +350,7 @@ elif task.startswith("🔗"):
         ncc_matches = ncc_matcher.match(descs1, descs2)
         t_ncc = time.perf_counter() - t0
 
-    # ── Metrics ───────────────────────────────────────────────
+    #  Metrics 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Descriptors – Img 1", f"{len(descs1):,}")
     m2.metric("Descriptors – Img 2", f"{len(descs2):,}")
@@ -384,7 +359,7 @@ elif task.startswith("🔗"):
 
     st.markdown("---")
 
-    # ── Input images with keypoints ───────────────────────────
+    #  Input images with keypoints 
     st.subheader("Input Images with Detected Keypoints")
     c1, c2 = st.columns(2)
     with c1:
@@ -400,7 +375,7 @@ elif task.startswith("🔗"):
 
     st.markdown("---")
 
-    # ── SSD matches ───────────────────────────────────────────
+    #  SSD matches 
     st.subheader(
         f"SSD Matches — {len(ssd_matches):,} accepted  "
         f"(Lowe ratio < {ssd_ratio:.2f})"
@@ -431,7 +406,7 @@ elif task.startswith("🔗"):
 
     st.markdown("---")
 
-    # ── NCC matches ───────────────────────────────────────────
+    #  NCC matches 
     st.subheader(
         f"NCC Matches — {len(ncc_matches):,} accepted  "
         f"(NCC ≥ {ncc_thresh:.2f})"
@@ -462,7 +437,7 @@ elif task.startswith("🔗"):
 
     st.markdown("---")
 
-    # ── SSD vs NCC comparison ─────────────────────────────────
+    #  SSD vs NCC comparison 
     st.subheader("SSD vs NCC — Side-by-side Summary")
     if ssd_matches and ncc_matches and vkps1 and vkps2:
         c1, c2 = st.columns(2)
@@ -477,8 +452,8 @@ elif task.startswith("🔗"):
 
     st.markdown("---")
 
-    # ── Timing table ──────────────────────────────────────────
-    st.subheader("📊 Computation Time Report")
+    #  Timing table 
+    st.subheader("Computation Time Report")
     st.table({
         "Step": [
             "Feature extraction – Image 1",
@@ -503,9 +478,8 @@ elif task.startswith("🔗"):
         ],
     })
 
-# ─────────────────────────────────────────────────────────────────────────────
 #  FOOTER
-# ─────────────────────────────────────────────────────────────────────────────
+
 st.markdown("---")
 st.caption(
     "All algorithms implemented from scratch using **NumPy** only.  "

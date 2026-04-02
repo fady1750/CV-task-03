@@ -1,8 +1,3 @@
-"""
-base.py – Abstract base classes for feature detectors, descriptors, and matchers.
-All concrete implementations live in filters.py.
-"""
-
 from abc import ABC, abstractmethod
 from typing import List, Tuple
 import numpy as np

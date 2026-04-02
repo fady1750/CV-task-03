@@ -33,9 +33,7 @@ from .base  import FeatureDetector, FeatureDescriptor, FeatureMatcher
 from .utils import to_grayscale
 
 
-# ═══════════════════════════════════════════════════════════════
 #  LOW-LEVEL PRIMITIVES  (pure NumPy, no built-in CV functions)
-# ═══════════════════════════════════════════════════════════════
 
 def _make_gaussian_kernel(size: int, sigma: float) -> np.ndarray:
     """
