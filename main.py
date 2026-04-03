@@ -11,7 +11,7 @@ from PIL import Image
 
 from src.filters import HarrisDetector, SIFTDescriptor, SSDMatcher, NCCMatcher
 from src.utils   import (
-    to_grayscale, normalize_image,
+    normalize_image,
     fig_keypoints, fig_response_map, fig_matches,
     fig_descriptor_heatmaps, create_sample_images,
 )
@@ -42,7 +42,7 @@ st.markdown(
 
 #  SIDEBAR – navigation & parameters
 with st.sidebar:
-    st.markdown("## 🔬 CV Feature Lab")
+    st.markdown("## CV Feature Lab")
     st.caption("Assignment 3 – Feature Detection & Matching")
     st.markdown("---")
 
@@ -95,9 +95,8 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📷 Image Input")
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 #  IMAGE LOADING HELPERS
-# ─────────────────────────────────────────────────────────────────────────────
 SAMPLES = create_sample_images()
 
 def _image_widget(label: str, key: str) -> np.ndarray | None:
@@ -391,13 +390,26 @@ elif task.startswith("Feature Matching"):
 
         # Score distribution
         ssd_scores = [m[2] for m in ssd_matches]
-        fig2, ax = plt.subplots(figsize=(8, 2.5))
-        ax.hist(ssd_scores, bins=30, color="#4caf50", edgecolor="black", alpha=0.85)
-        ax.set_xlabel("SSD score (lower = better)")
-        ax.set_ylabel("Count")
-        ax.set_title("SSD Score Distribution")
-        plt.tight_layout()
-        st.pyplot(fig2, use_container_width=True); plt.close(fig2)
+        if len(ssd_scores) > 0:
+            fig2, ax = plt.subplots(figsize=(8, 2.5))
+            
+            # Check if we have enough unique values for 30 bins
+            unique_scores = len(set(ssd_scores))
+            if unique_scores < 2:
+                # If all scores are the same, use 1 bin or show as text
+                bins = 1
+            else:
+                bins = min(30, unique_scores)
+            
+            ax.hist(ssd_scores, bins=bins, color="#4caf50", edgecolor="black", alpha=0.85)
+            ax.set_xlabel("SSD score (lower = better)")
+            ax.set_ylabel("Count")
+            ax.set_title(f"SSD Score Distribution (n={len(ssd_scores)})")
+            plt.tight_layout()
+            st.pyplot(fig2, use_container_width=True)
+            plt.close(fig2)
+        else:
+            st.info("No SSD scores to display")
     else:
         st.warning(
             "No SSD matches found. "
@@ -422,13 +434,26 @@ elif task.startswith("Feature Matching"):
 
         # Score distribution
         ncc_scores = [m[2] for m in ncc_matches]
-        fig2, ax = plt.subplots(figsize=(8, 2.5))
-        ax.hist(ncc_scores, bins=30, color="#2196f3", edgecolor="black", alpha=0.85)
-        ax.set_xlabel("NCC score (higher = better)")
-        ax.set_ylabel("Count")
-        ax.set_title("NCC Score Distribution")
-        plt.tight_layout()
-        st.pyplot(fig2, use_container_width=True); plt.close(fig2)
+        if len(ncc_scores) > 0:
+            fig2, ax = plt.subplots(figsize=(8, 2.5))
+            
+            # Check if we have enough unique values for 30 bins
+            unique_scores = len(set(ncc_scores))
+            if unique_scores < 2:
+                # If all scores are the same, use 1 bin or show as text
+                bins = 1
+            else:
+                bins = min(30, unique_scores)
+            
+            ax.hist(ncc_scores, bins=bins, color="#2196f3", edgecolor="black", alpha=0.85)
+            ax.set_xlabel("NCC score (higher = better)")
+            ax.set_ylabel("Count")
+            ax.set_title(f"NCC Score Distribution (n={len(ncc_scores)})")
+            plt.tight_layout()
+            st.pyplot(fig2, use_container_width=True)
+            plt.close(fig2)
+        else:
+            st.info("No NCC scores to display")
     else:
         st.warning(
             "No NCC matches found. "
@@ -482,6 +507,4 @@ elif task.startswith("Feature Matching"):
 
 st.markdown("---")
 st.caption(
-    "All algorithms implemented from scratch using **NumPy** only.  "
-    "No OpenCV, scikit-image, or scipy used for any core computation."
-)
+    "Copyright © 2026 Team 16 ")

@@ -14,10 +14,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 
 
-# ═══════════════════════════════════════════════════════════════
 #  IMAGE CONVERSION HELPERS
-# ═══════════════════════════════════════════════════════════════
-
 def to_grayscale(image: np.ndarray) -> np.ndarray:
     """
     Convert an image to float64 grayscale.
