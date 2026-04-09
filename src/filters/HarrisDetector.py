@@ -2,8 +2,9 @@ from typing import List, Tuple
 import numpy as np
 
 from .baseFilters import _convolve2d, _make_gaussian_kernel, _nms_2d, _sobel_gradients
-from ..base  import FeatureDetector
+from ..base import FeatureDetector
 from ..utils import to_grayscale
+
 
 class HarrisDetector(FeatureDetector):
     """
@@ -33,27 +34,27 @@ class HarrisDetector(FeatureDetector):
 
     def __init__(
         self,
-        method: str           = "harris",
-        k: float              = 0.04,
-        sigma: float          = 1.0,
-        window_size: int      = 5,
+        method: str = "harris",
+        k: float = 0.04,
+        sigma: float = 1.0,
+        window_size: int = 5,
         threshold_ratio: float = 0.01,
-        nms_window: int       = 7,
+        nms_window: int = 7,
     ) -> None:
         if method not in ("harris", "lambda_minus"):
             raise ValueError("method must be 'harris' or 'lambda_minus'")
-        self.method          = method
-        self.k               = k
-        self.sigma           = sigma
-        self.window_size     = window_size
+        self.method = method
+        self.k = k
+        self.sigma = sigma
+        self.window_size = window_size
         self.threshold_ratio = threshold_ratio
-        self.nms_window      = nms_window
+        self.nms_window = nms_window
 
-    #  public API 
+    # public API 
     def detect(
         self,
         image: np.ndarray,
-    ) -> Tuple[List[Tuple[int, int]], np.ndarray]:
+    ) -> Tuple[List[Tuple[int, int, float]], np.ndarray]:
         """
         Detect corners in *image*.
 
@@ -67,6 +68,11 @@ class HarrisDetector(FeatureDetector):
         6. Threshold at threshold_ratio × max(R).
         7. Non-maximum suppression.
         8. Return keypoints + response map.
+
+        Returns
+        -------
+        keypoints : List of (row, col, response) - response is R value
+        response_map : Full R matrix (for visualisation)
         """
         gray = to_grayscale(image)
 
@@ -79,28 +85,30 @@ class HarrisDetector(FeatureDetector):
         Ixy = Ix * Iy
 
         # Step 4 – Gaussian smoothing (spatial averaging over a neighbourhood)
-        g   = _make_gaussian_kernel(self.window_size, self.sigma)
+        g = _make_gaussian_kernel(self.window_size, self.sigma)
         Sxx = _convolve2d(Ixx, g)
         Syy = _convolve2d(Iyy, g)
         Sxy = _convolve2d(Ixy, g)
 
         # Step 5 – Corner response
-        det   = Sxx * Syy - Sxy ** 2
+        det = Sxx * Syy - Sxy ** 2
         trace = Sxx + Syy
 
         if self.method == "harris":
             R = det - self.k * (trace ** 2)
-        else:                                      # lambda_minus
+        else:  # lambda_minus
             half_diff = (Sxx - Syy) / 2.0
             R = (Sxx + Syy) / 2.0 - np.sqrt(half_diff ** 2 + Sxy ** 2)
 
         # Step 6 – Threshold
         thresh = self.threshold_ratio * float(R.max())
-        R_pos  = np.where(R > thresh, R, 0.0)
+        R_pos = np.where(R > thresh, R, 0.0)
 
         # Step 7 – NMS
-        mask      = _nms_2d(R_pos, self.nms_window)
+        mask = _nms_2d(R_pos, self.nms_window)
         rows, cols = np.where(mask)
-        keypoints  = list(zip(rows.tolist(), cols.tolist()))
+
+        # Include the response strength for each keypoint
+        keypoints = [(int(r), int(c), float(R_pos[r, c])) for r, c in zip(rows, cols)]
 
         return keypoints, R
