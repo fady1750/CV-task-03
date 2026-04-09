@@ -42,7 +42,7 @@ class SIFTDescriptor(FeatureDescriptor):
         y, x = np.mgrid[-half:half, -half:half]
         sigma = self.PATCH_SIZE / 2
         gaussian_window = np.exp(-(x**2 + y**2) / (2 * sigma**2))
-        gaussian_window = gaussian_window / gaussian_window.sum()  # normalize
+        gaussian_window = gaussian_window / gaussian_window.max()  # normalize
 
         for kp in kps_sorted:
             r, c, strength = kp

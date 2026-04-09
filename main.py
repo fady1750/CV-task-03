@@ -58,7 +58,7 @@ with st.sidebar:
 
     needs_two_images = task.startswith("Feature Matching")
 
-    # Harris parameters 
+    # Harris parameters
     st.markdown("---")
     with st.expander("Harris Parameters", expanded=True):
         harris_k       = st.slider("k constant",        0.01, 0.10, 0.04, 0.005,
@@ -71,7 +71,7 @@ with st.sidebar:
         harris_nms     = st.slider("NMS window",        3,    15,   7,    2,
                                    help="Side length of non-max suppression window.")
 
-    #   SIFT parameters 
+    # SIFT parameters
     if not task.startswith("Harris"):
         with st.expander("SIFT Parameters", expanded=False):
             max_kp = st.slider("Max keypoints", 50, 500, 200, 50,
@@ -79,7 +79,7 @@ with st.sidebar:
     else:
         max_kp = 200
 
-    #  Matching parameters 
+    # Matching parameters
     if needs_two_images:
         with st.expander("Matching Parameters", expanded=False):
             ssd_ratio   = st.slider("SSD Lowe ratio",   0.50, 0.95, 0.75, 0.05,
@@ -91,12 +91,12 @@ with st.sidebar:
     else:
         ssd_ratio, ncc_thresh, max_matches = 0.75, 0.70, 30
 
-    #  Image input 
+    # Image input
     st.markdown("---")
     st.markdown("### 📷 Image Input")
 
 
-#  IMAGE LOADING HELPERS
+# IMAGE LOADING HELPERS
 SAMPLES = create_sample_images()
 
 def _image_widget(label: str, key: str) -> np.ndarray | None:
@@ -129,14 +129,13 @@ else:
     img1 = _image_widget("Image", "1")
     img2 = None
 
-#  GUARD: require image(s) before proceeding
-
+# GUARD: require image(s) before proceeding
 if img1 is None or (needs_two_images and img2 is None):
     st.info("Please select or upload the required image(s) in the sidebar.")
     st.stop()
 
 
-#  TASK 1 – HARRIS CORNER DETECTION
+# TASK 1 – HARRIS CORNER DETECTION
 if task.startswith("Harris"):
     st.title("Harris Corner Detection")
     st.markdown(
@@ -144,7 +143,6 @@ if task.startswith("Harris"):
         "and **λ₋** (minimum eigenvalue / Shi-Tomasi) — both from scratch."
     )
 
-    #  Build detectors 
     det_h = HarrisDetector(
         method="harris",
         k=harris_k, sigma=harris_sigma,
@@ -156,12 +154,10 @@ if task.startswith("Harris"):
         window_size=5, threshold_ratio=harris_thresh, nms_window=harris_nms,
     )
 
-    #  Run detection 
     with st.spinner("Running Harris and λ₋ detectors…"):
         t0 = time.perf_counter(); kp_h,  R_h  = det_h.detect(img1);  t_h  = time.perf_counter() - t0
         t0 = time.perf_counter(); kp_lm, R_lm = det_lm.detect(img1); t_lm = time.perf_counter() - t0
 
-    #  Metrics row 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Harris – corners found", f"{len(kp_h):,}")
     m2.metric("Harris – time",          f"{t_h  * 1000:.1f} ms")
@@ -170,7 +166,6 @@ if task.startswith("Harris"):
 
     st.markdown("---")
 
-    #  Response maps 
     st.subheader("Corner Response Maps")
     c1, c2 = st.columns(2)
     with c1:
@@ -184,7 +179,6 @@ if task.startswith("Harris"):
 
     st.markdown("---")
 
-    #  Detected corners overlay 
     st.subheader("Detected Corners Overlaid on Image")
     c1, c2 = st.columns(2)
     with c1:
@@ -198,7 +192,6 @@ if task.startswith("Harris"):
 
     st.markdown("---")
 
-    #  Side-by-side comparison at same threshold 
     st.subheader("Original Image")
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.imshow(img1)
@@ -208,7 +201,6 @@ if task.startswith("Harris"):
 
     st.markdown("---")
 
-    #  Timing table 
     st.subheader("Computation Time Report")
     st.table({
         "Method":          ["Harris  (R = det − k·tr²)", "λ₋  (min eigenvalue)"],
@@ -226,7 +218,6 @@ elif task.startswith("SIFT"):
         "is computed for each one — entirely from scratch (pure NumPy)."
     )
 
-    #  Run pipeline 
     detector   = HarrisDetector(
         method="harris", k=harris_k, sigma=harris_sigma,
         window_size=5, threshold_ratio=harris_thresh, nms_window=harris_nms,
@@ -242,7 +233,6 @@ elif task.startswith("SIFT"):
         valid_kps, descs = descriptor.describe(img1, kps)
         t_describe = time.perf_counter() - t0
 
-    #  Metrics 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Keypoints detected",    f"{len(kps):,}")
     m2.metric("Detection time",        f"{t_detect  * 1000:.1f} ms")
@@ -251,7 +241,6 @@ elif task.startswith("SIFT"):
 
     st.markdown("---")
 
-    #  Keypoints visualisation 
     st.subheader("Detected Keypoints (Harris → SIFT input)")
     fig = fig_keypoints(img1, valid_kps,
                         title="SIFT Keypoints (Harris)", color="yellow",
@@ -260,14 +249,12 @@ elif task.startswith("SIFT"):
 
     st.markdown("---")
 
-    #  Harris response map 
     st.subheader("Harris Response Map (input to keypoint selection)")
     fig = fig_response_map(R, title="Harris R", cmap="hot")
     st.pyplot(fig, use_container_width=True); plt.close(fig)
 
     st.markdown("---")
 
-    #  Descriptor heatmaps 
     st.subheader("Sample SIFT Descriptor Heatmaps")
     st.caption(
         "Each descriptor is 128-dim, visualised as a 16×8 grid: "
@@ -284,7 +271,6 @@ elif task.startswith("SIFT"):
 
     st.markdown("---")
 
-    #  Descriptor statistics 
     if len(descs) > 0:
         st.subheader("Descriptor Statistics")
         c1, c2, c3 = st.columns(3)
@@ -295,7 +281,6 @@ elif task.startswith("SIFT"):
 
     st.markdown("---")
 
-    #  Timing table 
     st.subheader("Computation Time Report")
     st.table({
         "Step":       ["Harris Detection", "SIFT Description", "Total"],
@@ -308,7 +293,7 @@ elif task.startswith("SIFT"):
     })
 
 
-#  FEATURE MATCHING  (SSD & NCC)
+# FEATURE MATCHING (SSD & NCC)
 elif task.startswith("Feature Matching"):
     st.title("Feature Matching — SSD & NCC")
     st.markdown(
@@ -316,7 +301,6 @@ elif task.startswith("Feature Matching"):
         "then matched with **SSD** (Lowe ratio test) and **NCC** — all from scratch."
     )
 
-    #  Build objects 
     detector    = HarrisDetector(
         method="harris", k=harris_k, sigma=harris_sigma,
         window_size=5, threshold_ratio=harris_thresh, nms_window=harris_nms,
@@ -325,31 +309,25 @@ elif task.startswith("Feature Matching"):
     ssd_matcher = SSDMatcher(ratio_threshold=ssd_ratio)
     ncc_matcher = NCCMatcher(threshold=ncc_thresh)
 
-    #  Run pipeline 
     with st.spinner("Extracting features and matching…"):
-        # Image 1
         t0 = time.perf_counter()
         kps1, _  = detector.detect(img1)
         vkps1, descs1 = descriptor.describe(img1, kps1)
         t_feat1 = time.perf_counter() - t0
 
-        # Image 2
         t0 = time.perf_counter()
         kps2, _  = detector.detect(img2)
         vkps2, descs2 = descriptor.describe(img2, kps2)
         t_feat2 = time.perf_counter() - t0
 
-        # SSD matching
         t0 = time.perf_counter()
         ssd_matches = ssd_matcher.match(descs1, descs2)
         t_ssd = time.perf_counter() - t0
 
-        # NCC matching
         t0 = time.perf_counter()
         ncc_matches = ncc_matcher.match(descs1, descs2)
         t_ncc = time.perf_counter() - t0
 
-    #  Metrics 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Descriptors – Img 1", f"{len(descs1):,}")
     m2.metric("Descriptors – Img 2", f"{len(descs2):,}")
@@ -358,7 +336,6 @@ elif task.startswith("Feature Matching"):
 
     st.markdown("---")
 
-    #  Input images with keypoints 
     st.subheader("Input Images with Detected Keypoints")
     c1, c2 = st.columns(2)
     with c1:
@@ -374,7 +351,7 @@ elif task.startswith("Feature Matching"):
 
     st.markdown("---")
 
-    #  SSD matches 
+    # ── SSD Matches ──
     st.subheader(
         f"SSD Matches — {len(ssd_matches):,} accepted  "
         f"(Lowe ratio < {ssd_ratio:.2f})"
@@ -388,23 +365,25 @@ elif task.startswith("Feature Matching"):
         )
         st.pyplot(fig, use_container_width=True); plt.close(fig)
 
-        # Score distribution
         ssd_scores = [m[2] for m in ssd_matches]
         if len(ssd_scores) > 0:
             fig2, ax = plt.subplots(figsize=(8, 2.5))
-            
-            # Check if we have enough unique values for 30 bins
-            unique_scores = len(set(ssd_scores))
-            if unique_scores < 2:
-                # If all scores are the same, use 1 bin or show as text
-                bins = 1
+            s_min, s_max = float(np.min(ssd_scores)), float(np.max(ssd_scores))
+            if s_min == s_max:
+                # All scores identical — skip histogram, show text
+                ax.text(
+                    0.5, 0.5,
+                    f"All scores = {s_min:.4f}",
+                    ha="center", va="center",
+                    fontsize=12, transform=ax.transAxes
+                )
+                ax.set_title(f"SSD Score Distribution (n={len(ssd_scores)})")
             else:
-                bins = min(30, unique_scores)
-            
-            ax.hist(ssd_scores, bins=bins, color="#4caf50", edgecolor="black", alpha=0.85)
-            ax.set_xlabel("SSD score (lower = better)")
-            ax.set_ylabel("Count")
-            ax.set_title(f"SSD Score Distribution (n={len(ssd_scores)})")
+                bins = np.linspace(s_min, s_max, min(30, len(set(ssd_scores))) + 1)
+                ax.hist(ssd_scores, bins=bins, color="#4caf50", edgecolor="black", alpha=0.85)
+                ax.set_xlabel("SSD score (lower = better)")
+                ax.set_ylabel("Count")
+                ax.set_title(f"SSD Score Distribution (n={len(ssd_scores)})")
             plt.tight_layout()
             st.pyplot(fig2, use_container_width=True)
             plt.close(fig2)
@@ -418,7 +397,7 @@ elif task.startswith("Feature Matching"):
 
     st.markdown("---")
 
-    #  NCC matches 
+    # ── NCC Matches ──
     st.subheader(
         f"NCC Matches — {len(ncc_matches):,} accepted  "
         f"(NCC ≥ {ncc_thresh:.2f})"
@@ -432,23 +411,25 @@ elif task.startswith("Feature Matching"):
         )
         st.pyplot(fig, use_container_width=True); plt.close(fig)
 
-        # Score distribution
         ncc_scores = [m[2] for m in ncc_matches]
         if len(ncc_scores) > 0:
             fig2, ax = plt.subplots(figsize=(8, 2.5))
-            
-            # Check if we have enough unique values for 30 bins
-            unique_scores = len(set(ncc_scores))
-            if unique_scores < 2:
-                # If all scores are the same, use 1 bin or show as text
-                bins = 1
+            n_min, n_max = float(np.min(ncc_scores)), float(np.max(ncc_scores))
+            if n_min == n_max:
+                # All scores identical — skip histogram, show text
+                ax.text(
+                    0.5, 0.5,
+                    f"All scores = {n_min:.4f}",
+                    ha="center", va="center",
+                    fontsize=12, transform=ax.transAxes
+                )
+                ax.set_title(f"NCC Score Distribution (n={len(ncc_scores)})")
             else:
-                bins = min(30, unique_scores)
-            
-            ax.hist(ncc_scores, bins=bins, color="#2196f3", edgecolor="black", alpha=0.85)
-            ax.set_xlabel("NCC score (higher = better)")
-            ax.set_ylabel("Count")
-            ax.set_title(f"NCC Score Distribution (n={len(ncc_scores)})")
+                bins = np.linspace(n_min, n_max, min(30, len(set(ncc_scores))) + 1)
+                ax.hist(ncc_scores, bins=bins, color="#2196f3", edgecolor="black", alpha=0.85)
+                ax.set_xlabel("NCC score (higher = better)")
+                ax.set_ylabel("Count")
+                ax.set_title(f"NCC Score Distribution (n={len(ncc_scores)})")
             plt.tight_layout()
             st.pyplot(fig2, use_container_width=True)
             plt.close(fig2)
@@ -462,7 +443,7 @@ elif task.startswith("Feature Matching"):
 
     st.markdown("---")
 
-    #  SSD vs NCC comparison 
+    # ── SSD vs NCC Side-by-side ──
     st.subheader("SSD vs NCC — Side-by-side Summary")
     if ssd_matches and ncc_matches and vkps1 and vkps2:
         c1, c2 = st.columns(2)
@@ -477,7 +458,6 @@ elif task.startswith("Feature Matching"):
 
     st.markdown("---")
 
-    #  Timing table 
     st.subheader("Computation Time Report")
     st.table({
         "Step": [
@@ -503,8 +483,6 @@ elif task.startswith("Feature Matching"):
         ],
     })
 
-#  FOOTER
-
+# FOOTER
 st.markdown("---")
-st.caption(
-    "Copyright © 2026 Team 16 ")
+st.caption("Copyright © 2026 Team 16 ")
