@@ -271,25 +271,15 @@ elif task.startswith("SIFT"):
 
     st.markdown("---")
 
-    if len(descs) > 0:
-        st.subheader("Descriptor Statistics")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Descriptor dimension", "128")
-        c2.metric("Mean L2 norm (post-norm.)", f"{np.linalg.norm(descs, axis=1).mean():.3f}")
-        c3.metric("Mean descriptor entropy",
-                  f"{float(np.mean([-np.sum(d * np.log(d + 1e-10)) for d in descs])):.3f}")
-
-    st.markdown("---")
-
     st.subheader("Computation Time Report")
     st.table({
-        "Step":       ["Harris Detection", "SIFT Description", "Total"],
+        "Step":       ["Harris Detection", "SIFT Description"],
         "Count":      [f"{len(kps):,} keypoints",
                        f"{len(valid_kps):,} descriptors",
-                       "—"],
+                       ],
         "Time (ms)":  [f"{t_detect  * 1000:.2f}",
                        f"{t_describe * 1000:.2f}",
-                       f"{(t_detect + t_describe) * 1000:.2f}"],
+                       ],
     })
 
 
