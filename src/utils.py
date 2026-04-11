@@ -5,7 +5,7 @@ All routines operate on plain NumPy arrays; no OpenCV or scikit-image is used.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import matplotlib
@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 
 
-#  IMAGE CONVERSION HELPERS
+# IMAGE CONVERSION HELPERS
 def to_grayscale(image: np.ndarray) -> np.ndarray:
     """
     Convert an image to float64 grayscale.
@@ -44,13 +44,25 @@ def to_uint8(image: np.ndarray) -> np.ndarray:
     return (normalize_image(image) * 255).astype(np.uint8)
 
 
-# ═══════════════════════════════════════════════════════════════
-#  MATPLOTLIB VISUALIZATION
-# ═══════════════════════════════════════════════════════════════
+def _extract_rc(keypoints: list) -> Tuple[list, list]:
+    """
+    Safely extract (row, col) from keypoints that may be:
+      - (row, col)           — 2-tuple
+      - (row, col, strength) — 3-tuple
+    Returns two lists: rows, cols.
+    """
+    rows, cols = [], []
+    for kp in keypoints:
+        rows.append(kp[0])
+        cols.append(kp[1])
+    return rows, cols
+
+
+# MATPLOTLIB VISUALIZATION
 
 def fig_keypoints(
     image: np.ndarray,
-    keypoints: List[Tuple[int, int]],
+    keypoints: list,
     title: str = "Keypoints",
     color: str = "lime",
     max_kp: int = 500,
@@ -58,13 +70,7 @@ def fig_keypoints(
     """
     Return a Figure with *keypoints* scattered over the image.
 
-    Parameters
-    ----------
-    image     : input image (grayscale or RGB).
-    keypoints : list of (row, col).
-    title     : subplot title.
-    color     : marker colour string.
-    max_kp    : maximum number of keypoints to draw.
+    Accepts keypoints as (row, col) or (row, col, strength).
     """
     fig, ax = plt.subplots(figsize=(6, 6))
     gray = to_grayscale(image)
@@ -72,7 +78,7 @@ def fig_keypoints(
 
     shown = keypoints[:max_kp]
     if shown:
-        ys, xs = zip(*shown)
+        ys, xs = _extract_rc(shown)
         ax.scatter(
             xs, ys,
             s=10, c=color,
@@ -103,9 +109,9 @@ def fig_response_map(
 
 def fig_matches(
     img1: np.ndarray,
-    kp1: List[Tuple[int, int]],
+    kp1: list,
     img2: np.ndarray,
-    kp2: List[Tuple[int, int]],
+    kp2: list,
     matches: List[Tuple[int, int, float]],
     title: str = "Feature Matches",
     max_matches: int = 50,
@@ -113,8 +119,7 @@ def fig_matches(
     """
     Return a Figure with matched keypoints connected by coloured lines.
 
-    Images are placed side by side; a horizontal offset is applied to the
-    second image's keypoint x-coordinates.
+    Accepts keypoints as (row, col) or (row, col, strength).
     """
     shown = matches[:max_matches]
 
@@ -134,18 +139,16 @@ def fig_matches(
 
     cmap_lines = plt.get_cmap("hsv", max(len(shown), 1))
     for idx, (i, j, _score) in enumerate(shown):
-        r1, c1 = kp1[i]
-        r2, c2 = kp2[j]
+        r1, c1 = kp1[i][0], kp1[i][1]   # safe: works for 2-tuple or 3-tuple
+        r2, c2 = kp2[j][0], kp2[j][1]
         c2_shifted = c2 + w1
         col = cmap_lines(idx / max(len(shown), 1))
         ax.plot([c1, c2_shifted], [r1, r2], "-", color=col,
                 linewidth=0.9, alpha=0.75)
-        ax.plot(c1,        r1, "o", color=col, markersize=4)
+        ax.plot(c1,         r1, "o", color=col, markersize=4)
         ax.plot(c2_shifted, r2, "o", color=col, markersize=4)
 
-    # Divider line
     ax.axvline(x=w1, color="white", linewidth=1.5, linestyle="--", alpha=0.6)
-
     ax.set_title(f"{title}  ({len(shown)} matches shown / {len(matches)} total)",
                  fontsize=11)
     ax.axis("off")
@@ -158,8 +161,7 @@ def fig_descriptor_heatmaps(
     n: int = 5,
 ) -> plt.Figure:
     """
-    Visualise up to *n* 128-dim SIFT descriptors as 16×8 heatmaps
-    (16 spatial cells × 8 orientation bins).
+    Visualise up to *n* 128-dim SIFT descriptors as 16×8 heatmaps.
     """
     n = min(n, len(descriptors))
     if n == 0:
@@ -174,7 +176,7 @@ def fig_descriptor_heatmaps(
         axes = [axes]
 
     for i, ax in enumerate(axes):
-        d_vis = descriptors[i].reshape(16, 8)  # 16 cells × 8 bins
+        d_vis = descriptors[i].reshape(16, 8)
         im = ax.imshow(d_vis, cmap="viridis", aspect="auto")
         ax.set_title(f"KP #{i + 1}", fontsize=9)
         ax.set_xlabel("Orientation bin", fontsize=8)
@@ -191,20 +193,16 @@ def fig_descriptor_heatmaps(
     return fig
 
 
-# ═══════════════════════════════════════════════════════════════
-#  SYNTHETIC TEST IMAGES
-# ═══════════════════════════════════════════════════════════════
+# SYNTHETIC TEST IMAGES
 
 def create_sample_images() -> Dict[str, np.ndarray]:
     """
     Generate a set of synthetic images for quick testing.
-
-    Returns a dict mapping name → uint8 RGB array (H, W, 3).
     """
     samples: Dict[str, np.ndarray] = {}
     rng = np.random.default_rng(42)
 
-    # ── 1. Checkerboard – dense grid of corners ────────────────
+    # 1. Checkerboard
     size, sq = 256, 32
     board = np.zeros((size, size), dtype=np.uint8)
     for i in range(size // sq):
@@ -213,31 +211,30 @@ def create_sample_images() -> Dict[str, np.ndarray]:
                 board[i * sq:(i + 1) * sq, j * sq:(j + 1) * sq] = 255
     samples["Checkerboard"] = np.stack([board] * 3, axis=-1)
 
-    # ── 2. Checkerboard (shifted) – good matching target ───────
+    # 2. Checkerboard (shifted)
     shifted = np.roll(board, shift=(16, 16), axis=(0, 1))
     samples["Checkerboard (Shifted)"] = np.stack([shifted] * 3, axis=-1)
 
-    # ── 3. Geometric shapes ────────────────────────────────────
+    # 3. Geometric shapes
     geo = np.full((300, 400, 3), 200, dtype=np.uint8)
-    geo[40:130,  40:160] = [30,  100, 210]   # blue rectangle
-    geo[40:130, 230:350] = [210,  50,  50]   # red  rectangle
+    geo[40:130,  40:160] = [30,  100, 210]
+    geo[40:130, 230:350] = [210,  50,  50]
     y, x = np.ogrid[:300, :400]
-    geo[(y - 210) ** 2 + (x -  100) ** 2 <= 55 ** 2] = [30, 180, 80]   # green circle
-    geo[(y - 210) ** 2 + (x -  300) ** 2 <= 55 ** 2] = [220, 200, 50]  # yellow circle
-    # white triangle
+    geo[(y - 210) ** 2 + (x -  100) ** 2 <= 55 ** 2] = [30, 180, 80]
+    geo[(y - 210) ** 2 + (x -  300) ** 2 <= 55 ** 2] = [220, 200, 50]
     for row in range(80):
         hw = row // 2
         geo[160 + row, 190 - hw: 210 + hw] = [240, 240, 240]
     samples["Geometric Shapes"] = geo
 
-    # ── 4. Building pattern – regular window grid ──────────────
+    # 4. Building pattern
     bld = np.full((256, 256, 3), 160, dtype=np.uint8)
     for r in range(10, 246, 36):
         for c in range(10, 246, 28):
             bld[r:r + 22, c:c + 18] = [70, 100, 145]
     samples["Building Pattern"] = bld
 
-    # ── 5. Noisy gradient – tests robustness ──────────────────
+    # 5. Noisy gradient
     grad = np.tile(np.linspace(0, 255, 256, dtype=np.float32), (256, 1))
     noise = rng.integers(-25, 25, (256, 256), dtype=np.int16)
     grad = np.clip(grad.astype(np.int16) + noise, 0, 255).astype(np.uint8)
