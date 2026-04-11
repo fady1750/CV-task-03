@@ -166,6 +166,13 @@ if task.startswith("Harris"):
 
     st.markdown("---")
 
+    st.subheader("Original Image")
+    fig, ax = plt.subplots(figsize=(3, 3))
+    ax.imshow(img1)
+    ax.axis("off")
+    ax.set_title("Input Image")
+    st.pyplot(fig, use_container_width=False); plt.close(fig)
+
     st.subheader("Corner Response Maps")
     c1, c2 = st.columns(2)
     with c1:
@@ -189,15 +196,6 @@ if task.startswith("Harris"):
         st.markdown(f"**λ₋ (Shi-Tomasi)** — {len(kp_lm):,} corners")
         fig = fig_keypoints(img1, kp_lm, title="λ₋ Corners", color="cyan")
         st.pyplot(fig, use_container_width=True); plt.close(fig)
-
-    st.markdown("---")
-
-    st.subheader("Original Image")
-    fig, ax = plt.subplots(figsize=(6, 6))
-    ax.imshow(img1)
-    ax.axis("off")
-    ax.set_title("Input Image")
-    st.pyplot(fig, use_container_width=True); plt.close(fig)
 
     st.markdown("---")
 
